@@ -163,7 +163,9 @@ int write_file_by_inode(struct inode *file_inode, void *buf, size_t count) {
 
 	struct inode_data data;
 	read_inode_data(file_inode, &data);
+
 	ensure_enough_blocks(file_inode, file_inode->size + count);
+	file_inode->size += count;
 
 	int num_full_blocks = count / BLOCKSIZE;
 	struct block tmp_block;
@@ -185,9 +187,9 @@ int ensure_enough_blocks(struct inode * file_inode, size_t total_size) {
 	if((total_size - num_full_blocks * BLOCKSIZE) > 0)
 		num_full_blocks++;
 
-	int already_allocated_blocks = file_inode->size / BLOCKSIZE;
-	if((file_inode->size - already_allocated_blocks * BLOCKSIZE) > 0)
-		already_allocated_blocks++;
+	int already_allocated_blocks = file_inode->size / BLOCKSIZE + 1;
+	if((file_inode->size % BLOCKSIZE) == 0)
+		already_allocated_blocks--;
 
 	int i;
 	for(i = already_allocated_blocks; i < num_full_blocks; i++) {
@@ -231,9 +233,6 @@ size_t write_file(char *filename, void *buf, size_t count) {
 	read_inode(inode, &file_inode);
 	allocate_inode(&file_inode);
 	//read_inode(inode, &file_inode);
-	file_inode.size = count;
-	write_inode(inode, &file_inode);
-
 	
 	struct inode dir_inode;
 	read_inode(root.inumber, &dir_inode);
@@ -244,7 +243,9 @@ size_t write_file(char *filename, void *buf, size_t count) {
 	add_entry_to_inode(&file_entry, &dir_inode);
 	write_inode(root.inumber, &dir_inode);
 
-	return write_file_by_inode(&file_inode, buf, count);
+	int ret =  write_file_by_inode(&file_inode, buf, count);
+	write_inode(inode, &file_inode);
+	return ret;
 }
 
 // uint current_directory(const char *filename) {
