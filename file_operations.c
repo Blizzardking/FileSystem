@@ -146,7 +146,8 @@ inline int create_empty_directory_entry(char *filename, struct inode *dir_inode)
 // 0 for no error
 int open_file(char *filename, struct V6_file *spec_dir, struct V6_file *opened_file) {
 	struct inode file_inode;
-	int inode = filename_to_inode(filename, spec_dir, &file_inode);
+	int inode = find_file_in_directory(filename, spec_dir);
+	read_inode(inode, &file_inode);
 	
 	if(is_directory_inode(&file_inode)) {
 		INFO("Can NOT open a directory\n");
@@ -188,7 +189,19 @@ ssize_t write_file(struct V6_file *opened_file, void *buf, size_t count) {
 	return ret;
 }
 
+int filename_contains_slash(const char *filename) {
+	while(filename) {
+		if(*filename++ == '/')
+			return 1;
+	}
+	return 0;
+}
+
 int create_file(char *filename, struct V6_file *spec_dir) {
+	if(filename_contains_slash(filename) == 1) {
+		INFO("create file not support recursively creating file now\n");
+	}
+
 	struct V6_file file_entry;
 	struct inode file_inode;
 	memset(&file_inode, 0, INODESIZE);
@@ -421,7 +434,7 @@ int find_file_in_directory(const char *filename, struct V6_file *spec_dir) {
 	}
 	
 
-	if((curr_inode.flags | 0100000) == 0) {
+	if((curr_inode.flags & 0100000) == 0) {
 		ERROR("Internal error: an existing file contains unallocated inode\n");
 	}
 
