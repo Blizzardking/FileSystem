@@ -73,8 +73,8 @@ int create_directory(char *filename, struct V6_file *spec_dir) {
 	}
 
 	return inode;
+	// not write spec_dir to disk, it may be completed by upper call
 }
-
 
 int add_directory_to_directory(struct file_entry *dir_entry, struct file_entry *parent_dir_entry) {
 	struct file_entry itself;
@@ -198,9 +198,9 @@ int filename_contains_slash(const char *filename) {
 }
 
 int create_file(char *filename, struct V6_file *spec_dir) {
-	if(filename_contains_slash(filename) == 1) {
-		INFO("create file not support recursively creating file now\n");
-	}
+	// if(filename_contains_slash(filename) == 1) {
+	// 	INFO("create file not support recursively creating file now\n");
+	// }
 
 	struct V6_file file_entry;
 	struct inode file_inode;
@@ -301,9 +301,9 @@ int ensure_enough_blocks(struct inode * file_inode, size_t total_size) {
 	if((total_size - num_full_blocks * BLOCKSIZE) > 0)
 		num_full_blocks++;
 
-	int already_allocated_blocks = file_inode->size / BLOCKSIZE;
-	if((file_inode->size - already_allocated_blocks * BLOCKSIZE) > 0)
-		already_allocated_blocks++;
+	int already_allocated_blocks = file_inode->size / BLOCKSIZE + 1;
+	if((file_inode->size % BLOCKSIZE) == 0)
+		already_allocated_blocks--;
 
 	int i;
 	for(i = already_allocated_blocks; i < num_full_blocks; i++) {
