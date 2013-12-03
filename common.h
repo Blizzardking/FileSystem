@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 typedef unsigned char byte;
 typedef unsigned short ushort;
@@ -25,6 +26,8 @@ typedef unsigned int uint;
 #endif
 
 #define ERROR(format, ...) do { fprintf(stderr, format, ##__VA_ARGS__); exit(-1); }while(0)
+
+#define INFO(format, ...) do { fprintf(stdout, format, ##__VA_ARGS__); }while(0)
 
 #endif
 

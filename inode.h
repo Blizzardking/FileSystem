@@ -24,12 +24,12 @@ struct inode_data {
 
 #define INODESIZE sizeof(struct inode)
 #define INODES_PER_BLOCK (BLOCKSIZE/INODESIZE)
-void read_inode(uint inode, struct inode *inode_buf);
-void write_inode(uint inode, struct inode *inode_buf);
+int read_inode(uint inode, struct inode *inode_buf);
+int write_inode(uint inode, struct inode *inode_buf);
 int free_inode(uint free_inode);
 uint get_free_inode();  //replace allocate_inode()
 int is_free_inode(struct inode* ino);
 inline int allocate_inode_by_number(uint inode);
 inline int allocate_inode(struct inode *file_inode);
-inline int check_allocation(struct inode *file_inode);
+inline int is_allocated_inode(struct inode *file_inode);
 #endif

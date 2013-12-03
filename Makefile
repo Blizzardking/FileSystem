@@ -11,13 +11,15 @@ DEBUG_MODE := y
 ifeq ($(DEBUG_MODE), y)
         DEBUG := -g
         MACRO := -D__DEBUG__
+	OPTIM :=
 else
         DEBUG :=
         MACRO :=
+	OPTIM := -O2
 endif
 
 LIB += -L/usr/lib/x86_64-linux-gnu/ -L/usr/lib/i386-linux-gnu/
-CFLAGS := $(DEBUG) $(MACRO) -Wall
+CFLAGS := $(DEBUG) $(MACRO) $(OPTIM) -Wall
 CXXFLAGS := $(CFLAGS)
 LDFLAGS := $(DEBUG) $(LIB)
 

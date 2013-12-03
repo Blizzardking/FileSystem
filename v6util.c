@@ -3,7 +3,8 @@
 #include "inode.h"
 #include "file.h"
 
-struct V6_file root2;
+struct V6_file curr_dir;
+struct V6_file root_dir;
 
 
 int initfs(int argc, char** argv) {
@@ -22,7 +23,8 @@ int initfs(int argc, char** argv) {
     lseek(curr_fd, n1 * 2048, SEEK_SET);
     write(curr_fd," ",1);
     initiate_super_block(curr_fd, n1, n2);
-    make_root_directory(&root2); 
+    make_root_directory(&root_dir); 
+    memcpy((void *)&curr_dir, (void *)&root_dir, FILE_ENTRY_SIZE);
  //   print_superblock();
  /*   int allocated_block;
     while(allocated_block = allocate_block())
@@ -48,7 +50,7 @@ int cpin(int argc, char** argv) {
     // by destination file name.
     if(argc != 3) {
          printf("Usage: cpin external_file_name v6_file\n");
-         return 1;
+         return -1;
     }
 
     if (curr_fd == -1) {
@@ -105,7 +107,11 @@ int cpin(int argc, char** argv) {
         return -1;
     }
     int size = read(src_fd, buf, filelength);
-    write_file(dst_path, buf, size);
+
+    struct V6_file new_file;
+    assert(open_file(dst_path, &curr_dir, &new_file) == 0);
+
+    write_file(&new_file, buf, size);
     free(buf);
     //close(dst_fd);
     return 0;
@@ -119,15 +125,15 @@ int cpout(int argc, char** argv) {
     // Assume that the program takes two arguments the source path followed
     // by destination file name.
     if(argc != 3) {
-         printf("Usage: cpin v6_file external_file_name\n");
-         return 1; 
+         printf("Usage: cpout v6_file external_file_name\n");
+         return -1; 
     }
 
     if (curr_fd == -1) {
          perror("disk doesn't exist!\n");
          exit(-1);
     }
-    uint curr_inode_number = find_file_in_directory(argv[2], &root2);
+    uint curr_inode_number = find_file_in_directory(argv[2], &curr_dir);
     if (curr_inode_number != -1) {
         printf("filename %s exists! Can't override an existing file", argv[2]);
         return -1;
@@ -156,7 +162,10 @@ int cpout(int argc, char** argv) {
         }
     }*/
     char *buf;
-    int filelength = get_file_size(src_path);
+    struct V6_file old_file;
+    assert(open_file(src_path, &curr_dir, &old_file) == 0);
+    //write_file(&new_file, buf, size);
+    int filelength = get_file_size(&old_file);
     buf = malloc(filelength);
     if (buf == 0)
     {
@@ -164,7 +173,7 @@ int cpout(int argc, char** argv) {
         return -1;
     }
  
-    read_file(src_path, buf, filelength);
+    read_file(&old_file, buf, filelength);
     write(dst_fd, buf, filelength);
     free(buf);
     //close(dst_fd);
@@ -176,10 +185,10 @@ int cpout(int argc, char** argv) {
 
 
 int mkdir1 (int argc, char** argv) {
-    char* dir_name;
+    char* dir_name = argv[1];
     if(argc != 2) {
          printf("Usage: mkdir V6-directory\n");
-         exit(-1);
+         return -1;
     }
 
     if (curr_fd == -1) {
@@ -187,13 +196,8 @@ int mkdir1 (int argc, char** argv) {
          exit(-1);
     }
 
-    int curr_inode_number = find_directory_in_directory(argv[1], &root2);
-    if (curr_inode_number != -1) {
-        printf("Diretory %s exists! Can't override an existing file", argv[1]);
-        return -1;
-    }
-    dir_name =  argv[1];
-    make_directory_in_directory(dir_name, &root2);
+    
+    create_directory(dir_name, &curr_dir);
     return 0;
 }
 
@@ -201,14 +205,14 @@ int ls(int argc, char** argv) {
     char** all_files_in_curr_diretory;
     if(argc != 1) {
          printf("Usage: ls\n");
-         exit(-1);
+         return -1;
     }
 
     if (curr_fd == -1) {
          perror("disk doesn't exist!\n");
          exit(-1);
     }
-    int file_count = list_directory(&all_files_in_curr_diretory,&root2);
+    int file_count = list_directory(&all_files_in_curr_diretory,&curr_dir);
     int i;
     for(i = 0; i < file_count; i++) {
         printf("%s\t",all_files_in_curr_diretory[i]);
@@ -219,6 +223,24 @@ int ls(int argc, char** argv) {
         free(all_files_in_curr_diretory[i]);
     }
     free(all_files_in_curr_diretory);
+    return 0;
+}
+
+int cd(int argc, char** argv) {
+    
+    if(argc != 2) {
+         printf("Usage: cd [DIR]\n");
+         return -1;
+    }
+
+    if (curr_fd == -1) {
+         perror("disk doesn't exist!\n");
+         exit(-1);
+    }
+
+    if(current_directory(argv[1], &curr_dir) < 0)
+        INFO("cd: %s NOT exist\n", argv[1]);
+
     return 0;
 }
 

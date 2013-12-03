@@ -29,3 +29,8 @@ out*
 *.orig
 *.sublime-project
 *.sublime-workspace
+\#*
+*.ede
+jun*
+test*
+out*

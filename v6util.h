@@ -16,4 +16,5 @@ int cpin(int argc, char** argv);
 int cpout(int argc, char** argv);
 int mkdir1(int argc, char** argv);
 int ls(int argc, char** argv);
+int cd(int argc, char** argv);
 #endif

@@ -18,7 +18,7 @@ inline int allocate_inode_by_number(uint inode) {
 // inline uint get_and_allocate_inode(struct inode *out_inode) {
     
     
-//  if(check_allocation(out_inode) == 1)
+//  if(is_allocated_inode(out_inode) == 1)
 //      return -1;
 
 //  allocate_inode(out_inode);
@@ -26,26 +26,36 @@ inline int allocate_inode_by_number(uint inode) {
 // }
 
 inline int allocate_inode(struct inode *file_inode) {
-    if(check_allocation(file_inode) != 0)
-        return -1;
     file_inode->flags |= 0100000;
     return 0;
 }
 
-void read_inode(uint inode, struct inode *inode_buf) {
+// return 0 if no error, otherwise return -1
+int read_inode(uint inode, struct inode *inode_buf) {
+    assert(inode > 0);
     //error: inode_offset may be negative
     //error: curr_inode and curr_block are not updated;
+    if(inode > curr_superblock.isize * (INODES_PER_BLOCK))
+        return -1;
+
     int block_index = (inode - 1) / INODES_PER_BLOCK + 2;
     int inode_offset = (inode - 1) % INODES_PER_BLOCK;
     int byte_offset = inode_offset * INODESIZE;
     struct block curr_block;
 
-    read_block(block_index, &curr_block, BLOCKSIZE);
+    read_block(block_index, &curr_block);
     
     memcpy((void *)inode_buf, (void *)&curr_block + byte_offset, INODESIZE);
+
+    return 0;
 }
 
-void write_inode(uint inode, struct inode *inode_buf) {
+// return 0 if no error, otherwise return -1
+int write_inode(uint inode, struct inode *inode_buf) {
+    assert(inode > 0);
+    if(inode > curr_superblock.isize * (INODES_PER_BLOCK))
+        return -1;
+
     int block_index = (inode - 1) / INODES_PER_BLOCK + 2;
     int inode_offset = (inode -1) % INODES_PER_BLOCK;
     int byte_offset = inode_offset * INODESIZE;
@@ -54,10 +64,12 @@ void write_inode(uint inode, struct inode *inode_buf) {
     //memcpy(&curr_inode, inode_buf, INODESIZE);
 
     
-    read_block(block_index, &curr_block, BLOCKSIZE);
+    read_block(block_index, &curr_block);
     
     memcpy((void *)&curr_block + byte_offset, (void *)inode_buf, INODESIZE);
-    write_block(block_index, &curr_block, BLOCKSIZE);
+    write_block(block_index, &curr_block);
+
+    return 0;
 }
 
 int free_inode(uint free_inode) {
@@ -81,7 +93,7 @@ uint get_free_inode() {
 
 
 // 1 if already allocated
-inline int check_allocation(struct inode *file_inode) {
+inline int is_allocated_inode(struct inode *file_inode) {
     if((file_inode->flags & 0100000) != 0)
         return 1;
     return 0;

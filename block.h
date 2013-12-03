@@ -34,8 +34,8 @@ struct data_block {
 extern int curr_fd;
 
 inline void write_superblock();
-ssize_t read_block(uint block, void* buf, size_t count);
-ssize_t write_block(uint block, void *buf, size_t count);
+ssize_t read_block(uint block, void* buf);
+ssize_t write_block(uint block, void *buf);
 void free_block(uint free_block); //add a freed block number to free array;
 uint allocate_block();   //return a freed block number
 

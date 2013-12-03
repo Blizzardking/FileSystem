@@ -25,10 +25,11 @@ inline void write_superblock() {
 }
 
 
-ssize_t read_block(uint block_index, void* buf, size_t count) {
+ssize_t read_block(uint block_index, void* buf) {
         int bytes = 0;
-        if(count > BLOCKSIZE)
-                return -1;
+        if (block_index > (curr_superblock.fsize - 1))
+            return -1;
+        
         int offset = block_index * BLOCKSIZE;
 
         // if(block_index == curr_block_num) {
@@ -43,7 +44,7 @@ ssize_t read_block(uint block_index, void* buf, size_t count) {
             exit(errno);
         }
 
-        if((bytes = read(curr_fd, (void *)(buf), count)) < 0) {
+        if((bytes = read(curr_fd, (void *)(buf), BLOCKSIZE)) < 0) {
             fprintf(stderr, "Error in read block %d\n", block_index);
             exit(errno);
         }
@@ -52,15 +53,13 @@ ssize_t read_block(uint block_index, void* buf, size_t count) {
         return bytes;
 }
 
-ssize_t write_block(uint block_index, void *buf, size_t count) {
-        if(count > BLOCKSIZE)
-                return -1;
-        int offset = block_index * BLOCKSIZE;
-
+ssize_t write_block(uint block_index, void *buf) {
+        if (block_index > (curr_superblock.fsize - 1))
+            return -1;
         
+        int offset = block_index * BLOCKSIZE;    
         memcpy(curr_block.data, buf, BLOCKSIZE);
         
-
         curr_block_num = block_index;
         int offs = 0;
         if((offs = lseek(curr_fd, offset, SEEK_SET)) < 0) {
@@ -69,7 +68,7 @@ ssize_t write_block(uint block_index, void *buf, size_t count) {
         }
 
         int bytes = 0;
-        if((bytes = write(curr_fd, curr_block.data, count)) < 0) {
+        if((bytes = write(curr_fd, curr_block.data, BLOCKSIZE)) < 0) {
                 fprintf(stderr, "Error in read block %d\n", block_index);
                 exit(errno);
         }
@@ -84,7 +83,7 @@ void free_block(uint free_block) {
         //int i;
         w.nfr = curr_superblock.nfree;
         memcpy(w.fr, curr_superblock.free, curr_superblock.nfree * sizeof(uint));
-        write_block(free_block, (void*)&w, BLOCKSIZE); //write nfree and free array into block i;
+        write_block(free_block, (void*)&w); //write nfree and free array into block i;
         curr_superblock.nfree = 0;
     }
     curr_superblock.free[curr_superblock.nfree++] = free_block;
@@ -102,7 +101,7 @@ uint allocate_block() {
     if(curr_superblock.nfree == 0) {
         struct head_free_block w;
         //int i;
-        read_block(block_id, (void*)&w, BLOCKSIZE);
+        read_block(block_id, (void*)&w);
         curr_superblock.nfree = w.nfr;
         memcpy(curr_superblock.free, w.fr, (curr_superblock.nfree + 1) * sizeof(uint));
     }
@@ -138,7 +137,7 @@ void initiate_inode_list() {
 
     uint max_inode_block = 1 + curr_superblock.isize;
     for(i = 2; i <= max_inode_block; i++)
-        write_block(i, arr, sizeof(arr));
+        write_block(i, arr);
 
     //int brr[512];
     //read_block(20,brr,512);
@@ -149,7 +148,7 @@ void initiate_inode_list() {
             break;
         struct inode ino;
         read_inode(i, &ino);
-        if(check_allocation(&ino) != 1) {
+        if(is_allocated_inode(&ino) != 1) {
             free_inode(i);    
         }
     }

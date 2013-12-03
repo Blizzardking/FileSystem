@@ -9,7 +9,17 @@ void tokenize(char *string, char *token_list[], int *argc);
 
 char seps[] = " ,\t\n";
 
+void usage() {
+    printf("initfs file_name(representing disk) n1(total number of blocks) n2(total number of blocks containing inodes)\n");
+    printf("cpin external_file_name v6_file\n");
+    printf("cpout v6_file external_file_name\n");
+    printf("mkdir V6-directory\n");
+    printf("cd [DIR]\n");
+    printf("ls\n");
+}
+
 int main() {
+    usage();
     while(1) {
         char string[MAX];
         fgets(string, MAX, stdin);
@@ -32,8 +42,10 @@ int main() {
                 mkdir1(argc,argv);
             else if(strcmp(argv[0], "ls") == 0)
                 ls(argc,argv);
+            else if(strcmp(argv[0], "cd") == 0)
+                cd(argc, argv);
             else {
-                printf("Error: unsupported operations!\nThis File System only support cpin, cpout, makdir and ls\n");
+                usage();
             }
         }
      }
