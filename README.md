@@ -10,6 +10,8 @@ $ make
 
 #Instructions about cpin cpout mkdir
 
+external file do NOT exceed 20 * 2048 Bytes, because only direct block implemented
+
 Notice that only cpin and cpout are permitted to access file recursively
 absolute path is also a recursive path
 ex: cpin externfile happy/nice/v6       is permitted
