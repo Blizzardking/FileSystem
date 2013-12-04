@@ -13,6 +13,9 @@ ssize_t read_file_by_inode(struct inode *file_inode, void *buf, size_t count);
 ssize_t write_file_by_inode(struct inode *file_inode, void *buf, size_t count);
 inline int filename_to_inode(char *filename, struct V6_file *curr_dir, struct inode *file_inode);
 int create_file_inode(struct inode *file_inode);
+int seperate_dir_path_and_file(const char* fullpath, char *file);
+const char *split_filename_from_path(const char *path, char *filename);
+int filename_contains_slash(const char *filename);
 
 struct V6_file root;
 
@@ -47,7 +50,38 @@ int add_file_entry_to_directory(struct file_entry *file, struct inode *dir_inode
 	return 0;
 }
 
+int remove_file(char *filename, struct V6_file *spec_dir) {
+	struct inode file_inode;
+	int inode = find_file_in_directory(filename, spec_dir);
+	
+
+	if(inode < 0) {
+		INFO("%s NOT exist\n", filename);
+		return -1;
+	}
+
+	read_inode(inode, &file_inode);
+
+	int already_allocated_blocks = file_inode.size / BLOCKSIZE + 1;
+	if((file_inode.size % BLOCKSIZE) == 0)
+		already_allocated_blocks--;
+
+	int i;
+	for (i = 0; i < already_allocated_blocks; ++i)
+	{
+		free_block(file_inode.addr[i]);
+	}
+	free_inode(inode);
+
+	return 0;
+}
+
 int create_directory(char *filename, struct V6_file *spec_dir) {
+	if(filename_contains_slash(filename) == 1) {
+		INFO("recursively mkdir rm ls are NOT permitted, only cpin cpout cd can access file recursively\n");
+		return -1;
+	}
+
 	int curr_inode_number = find_file_in_directory(filename, spec_dir);
     if (curr_inode_number != -1) {
         printf("Diretory %s exists! Can't override an existing file\n", filename);
@@ -74,6 +108,8 @@ int create_directory(char *filename, struct V6_file *spec_dir) {
 
 	return inode;
 	// not write spec_dir to disk, it may be completed by upper call
+
+
 }
 
 int add_directory_to_directory(struct file_entry *dir_entry, struct file_entry *parent_dir_entry) {
@@ -147,19 +183,23 @@ inline int create_empty_directory_entry(char *filename, struct inode *dir_inode)
 int open_file(char *filename, struct V6_file *spec_dir, struct V6_file *opened_file) {
 	struct inode file_inode;
 	int inode = find_file_in_directory(filename, spec_dir);
+	
+	if(inode <  0) {// file not exist, so create it
+		inode = create_file(filename, spec_dir);
+	}
+
+	if(inode < 0) {
+		INFO("create file fail\n");
+		return -1;
+	}
+
 	read_inode(inode, &file_inode);
 	
 	if(is_directory_inode(&file_inode)) {
 		INFO("Can NOT open a directory\n");
 		return -1;
 	}
-	if(inode <  0) {// file not exist, so create it
-		inode = create_file(filename, spec_dir);
-	}
-
-	if(inode < 0)
-		return -1;
-
+	
 	strncpy((char *)opened_file->filename, filename, FILENAME_LENGTH);
 	opened_file->inumber = inode;
 
@@ -182,7 +222,6 @@ ssize_t write_file(struct V6_file *opened_file, void *buf, size_t count) {
 	memset(&file_inode, 0, INODESIZE);
 	
 	assert(read_inode(opened_file->inumber, &file_inode) == 0);
-	file_inode.size = count;   // overwrite it, the file pointer is pending
 	
 	ssize_t ret = write_file_by_inode(&file_inode, buf, count);
 	write_inode(opened_file->inumber, &file_inode);
@@ -190,7 +229,7 @@ ssize_t write_file(struct V6_file *opened_file, void *buf, size_t count) {
 }
 
 int filename_contains_slash(const char *filename) {
-	while(filename) {
+	while(*filename) {
 		if(*filename++ == '/')
 			return 1;
 	}
@@ -202,6 +241,14 @@ int create_file(char *filename, struct V6_file *spec_dir) {
 	// 	INFO("create file not support recursively creating file now\n");
 	// }
 
+	int len_filename = strlen(filename);
+	char *dir_path = (char *)malloc(len_filename + 1);
+	char pure_filename[FILENAME_LENGTH];
+	int file_index = seperate_dir_path_and_file(filename, pure_filename);
+
+	strncpy(dir_path, filename, file_index - 1);
+	dir_path[file_index] = 0;
+
 	struct V6_file file_entry;
 	struct inode file_inode;
 	memset(&file_inode, 0, INODESIZE);
@@ -210,17 +257,22 @@ int create_file(char *filename, struct V6_file *spec_dir) {
 	if(inode < 0)
 		ERROR("No available inode\n");
 
+	int dir_path_inode = find_directory_in_directory(dir_path, spec_dir);
+	if(dir_path_inode < 0) {
+		INFO("Can NOT find directory %s\n", dir_path);
+	}
+
 	struct inode dir_inode;
-	assert(read_inode(spec_dir->inumber, &dir_inode) == 0);
+	assert(read_inode(dir_path_inode, &dir_inode) == 0);
 
 	file_entry.inumber = inode;
-	strncpy((char *)file_entry.filename, (const char *)filename, FILENAME_LENGTH);
+	strncpy((char *)file_entry.filename, (const char *)pure_filename, FILENAME_LENGTH);
 
 	if(add_entry_to_inode(&file_entry, &dir_inode) < 0) {
 		INFO("The directory %s is full\n", spec_dir->filename);
 		return -1;
 	}
-	assert(write_inode(spec_dir->inumber, &dir_inode) == 0);
+	assert(write_inode(dir_path_inode, &dir_inode) == 0);
 
 	return inode;
 }
@@ -230,7 +282,7 @@ int create_file_inode(struct inode *file_inode) {
 	if(inode < 2)
 		return -1;
 
-	assert(read_inode(inode, file_inode) == 0);
+	//assert(read_inode(inode, file_inode) == 0);
 	allocate_inode(file_inode);
 	file_inode->size = 0;
 	assert(write_inode(inode, file_inode) == 0);
@@ -276,9 +328,8 @@ ssize_t write_file_by_inode(struct inode *file_inode, void *buf, size_t count) {
 	struct inode_data data;
 	read_inode_data(file_inode, &data);
 
-	//ensure_enough_blocks(file_inode, file_inode->size + count);
-	ensure_enough_blocks(file_inode, count);
-	file_inode->size = count;
+	ensure_enough_blocks(file_inode, file_inode->size + count);
+	file_inode->size += count;
 
 	int num_full_blocks = count / BLOCKSIZE;
 	struct block tmp_block;
@@ -329,14 +380,6 @@ int get_file_size(struct V6_file *spec_file) {
 }
 
 
-
-// uint current_directory(const char *filename) {
-// 	uint tmp_inode = find_file_in_current_directory(filename);
-// 	if(tmp_inode < 1) {
-// 		return -1;
-// 	}
-// }
-
 inline int read_inode_data(struct inode *file_inode, struct inode_data *data) {
 	memcpy(data, file_inode->addr, sizeof(uint) * INODE_ADDR_LEN);
 	return 0;
@@ -373,6 +416,22 @@ int list_directory(char ***all_filename, struct V6_file *spec_dir) {
 	free((void *)entries);
 
 	return entry_num;
+}
+
+// return the index of first char of file
+int seperate_dir_path_and_file(const char* fullpath, char *file) {
+	const char *tmp = fullpath;
+	const char *file_tmp = tmp;
+
+	char split_filename[FILENAME_LENGTH];
+	while(*tmp != 0) {
+		file_tmp = tmp;
+		tmp = split_filename_from_path(tmp, split_filename);
+	}
+
+	strncpy(file, file_tmp, FILENAME_LENGTH);
+
+	return file_tmp - fullpath;
 }
 
 // return the pointer just after the '/'
@@ -420,7 +479,8 @@ int find_directory_in_directory(const char *filename, struct V6_file *spec_dir) 
 	return inode;
 }
 
-//return inode number 
+// find directory or plain file by name
+// return inode number 
 int find_file_in_directory(const char *filename, struct V6_file *spec_dir) {
 	
 	struct inode curr_inode;
