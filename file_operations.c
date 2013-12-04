@@ -8,7 +8,7 @@
 //extern struct inode curr_inode;
 //extern uint curr_inode_num;
 int mark_directory(struct inode *dir_inode);
-inline int is_directory(uint inode);
+inline int is_directory(int inode);
 ssize_t read_file_by_inode(struct inode *file_inode, void *buf, size_t count);
 ssize_t write_file_by_inode(struct inode *file_inode, void *buf, size_t count);
 inline int filename_to_inode(char *filename, struct V6_file *curr_dir, struct inode *file_inode);
@@ -469,7 +469,7 @@ int current_directory(char *filename, struct V6_file *spec_dir) {
 }
 
 int find_directory_in_directory(const char *filename, struct V6_file *spec_dir) {
-	uint inode = find_file_in_directory(filename, spec_dir);
+	int inode = find_file_in_directory(filename, spec_dir);
 	
 	if(inode < 0)
 		return -1;
@@ -485,9 +485,11 @@ int find_file_in_directory(const char *filename, struct V6_file *spec_dir) {
 	
 	struct inode curr_inode;
 	char split_filename[FILENAME_LENGTH];
+
 	const char *child_path = split_filename_from_path(filename, split_filename);
 	if(strcmp(split_filename, "/") == 0) {
 		read_inode(1, &curr_inode);  // absolute path
+		return find_file_in_directory(child_path, &root);
 	}
 	else {
 		read_inode(spec_dir->inumber, &curr_inode);
@@ -537,7 +539,7 @@ int is_this_file(struct file_entry *entry, const char* filename) {
 		return 0;
 }
 
-inline int is_directory(uint inode) {
+inline int is_directory(int inode) {
 	struct inode file_inode;
 	read_inode(inode, &file_inode);
 	return is_directory_inode(&file_inode);

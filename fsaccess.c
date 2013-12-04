@@ -10,6 +10,7 @@ void tokenize(char *string, char *token_list[], int *argc);
 char seps[] = " ,\t\n";
 
 void usage() {
+    printf("Usage: \n");
     printf("initfs file_name(representing disk) n1(total number of blocks) n2(total number of blocks containing inodes)\n");
     printf("cpin external_file_name v6_file\n");
     printf("cpout v6_file external_file_name\n");
