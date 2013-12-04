@@ -11,6 +11,7 @@ $ make
 #Instructions about cpin cpout mkdir
 
 Notice that only cpin and cpout are permitted to access file recursively
+absolute path is also a recursive path
 ex: cpin externfile happy/nice/v6       is permitted
 so is the cpout
 

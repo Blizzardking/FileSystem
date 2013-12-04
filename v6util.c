@@ -109,7 +109,7 @@ int cpin(int argc, char** argv) {
     int size = read(src_fd, buf, filelength);
 
     struct V6_file new_file;
-    assert(open_file(dst_path, &curr_dir, &new_file) == 0);
+    open_file(dst_path, &curr_dir, &new_file);
 
     write_file(&new_file, buf, size);
     free(buf);
@@ -163,7 +163,7 @@ int cpout(int argc, char** argv) {
     }*/
     char *buf;
     struct V6_file old_file;
-    assert(open_file(src_path, &curr_dir, &old_file) == 0);
+    open_file(src_path, &curr_dir, &old_file);
     //write_file(&new_file, buf, size);
     int filelength = get_file_size(&old_file);
     buf = malloc(filelength);
